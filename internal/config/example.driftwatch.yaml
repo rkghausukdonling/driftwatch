@@ -1,0 +1,25 @@
+# driftwatch configuration file
+# Place this file at .driftwatch.yaml in your project root
+# or pass --config <path> to any command.
+
+# Cloud provider to inspect (aws | gcp | azure)
+provider: aws
+
+# Default region for API calls
+region: us-east-1
+
+# Path to the Terraform state file or remote state URL
+statefile: ./terraform.tfstate
+
+# Output format for drift reports (table | json | yaml)
+output_format: table
+
+# Resources to exclude from drift detection (supports glob patterns)
+ignore:
+  - aws_s3_bucket.tfstate
+  - aws_iam_role.ci_*
+
+# Optional tag filters — only resources carrying ALL listed tags are checked
+tags:
+  env: production
+  managed-by: terraform
