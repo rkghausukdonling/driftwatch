@@ -1,68 +1,56 @@
 package drift
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/driftwatch/internal/provider"
 )
 
-// Status represents the drift status of a single resource.
-type Status int
+// Status represents the drift state of a single resource.
+type Status string
 
 const (
-	StatusMatch   Status = iota // Resource matches IaC definition
-	StatusDrifted               // Resource exists but has drifted
-	StatusMissing               // Resource defined in IaC but not found
-	StatusOrphan                // Resource found but not in IaC
+	StatusOK      Status = "ok"
+	StatusMissing Status = "missing"
+	StatusDrifted Status = "drifted"
 )
 
-func (s Status) String() string {
-	switch s {
-	case StatusMatch:
-		return "match"
-	case StatusDrifted:
-		return "drifted"
-	case StatusMissing:
-		return "missing"
-	case StatusOrphan:
-		return "orphan"
-	default:
-		return "unknown"
-	}
-}
-
-// Result holds the drift detection outcome for a single resource.
+// Result holds the outcome of checking one resource for drift.
 type Result struct {
 	ResourceID string
 	Status     Status
 	Details    string
 }
 
-// Detector compares desired state (IaC definitions) against live provider state.
+// Detector checks resources against a provider for drift.
 type Detector struct {
-	provider provider.Provider
+	p provider.Provider
 }
 
 // New creates a Detector backed by the given provider.
-func New(p provider.Provider) *Detector {
-	return &Detector{provider: p}
+func New(p provider.Provider) (*Detector, error) {
+	if p == nil {
+		return nil, fmt.Errorf("provider must not be nil")
+	}
+	return &Detector{p: p}, nil
 }
 
-// Detect checks each desired resource ID against live state and returns results.
-func (d *Detector) Detect(desiredIDs []string) ([]Result, error) {
-	if len(desiredIDs) == 0 {
-		return nil, fmt.Errorf("detect: no resource IDs provided")
+// Detect checks each resource ID and returns a Result per resource.
+func (d *Detector) Detect(ctx context.Context, resourceIDs []string) ([]Result, error) {
+	if len(resourceIDs) == 0 {
+		return nil, nil
 	}
 
-	results := make([]Result, 0, len(desiredIDs))
+	results := make([]Result, 0, len(resourceIDs))
 
-	for _, id := range desiredIDs {
-		res, err := d.provider.FetchState(id)
+	for _, id := range resourceIDs {
+		res, err := d.p.FetchState(ctx, id)
 		if err != nil {
 			results = append(results, Result{
 				ResourceID: id,
 				Status:     StatusMissing,
-				Details:    fmt.Sprintf("provider error: %v", err),
+				Details:    fmt.Sprintf("fetch error: %v", err),
 			})
 			continue
 		}
@@ -71,15 +59,23 @@ func (d *Detector) Detect(desiredIDs []string) ([]Result, error) {
 			results = append(results, Result{
 				ResourceID: id,
 				Status:     StatusMissing,
-				Details:    "resource not found in provider",
+				Details:    "not found in provider",
+			})
+			continue
+		}
+
+		if res.Drifted {
+			results = append(results, Result{
+				ResourceID: id,
+				Status:     StatusDrifted,
+				Details:    res.DriftDetails,
 			})
 			continue
 		}
 
 		results = append(results, Result{
 			ResourceID: id,
-			Status:     StatusMatch,
-			Details:    fmt.Sprintf("state: %s", res.State),
+			Status:     StatusOK,
 		})
 	}
 
