@@ -21,12 +21,17 @@ any configuration drift it detects.`,
 	SilenceUsage: true,
 }
 
-// Execute runs the root command.
+// Execute runs the root command and exits with a non-zero status code on error.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// isVerbose returns true if verbose output has been enabled via the --verbose flag.
+func isVerbose() bool {
+	return verbose
 }
 
 func init() {
