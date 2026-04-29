@@ -26,6 +26,7 @@ type Resource struct {
 var registry = map[string]func(cfg map[string]string) (Provider, error){}
 
 // Register adds a provider factory under the given name.
+// If a factory is already registered under the same name it will be overwritten.
 func Register(name string, factory func(cfg map[string]string) (Provider, error)) {
 	registry[name] = factory
 }
@@ -47,4 +48,10 @@ func Available() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// IsRegistered reports whether a provider with the given name has been registered.
+func IsRegistered(name string) bool {
+	_, ok := registry[name]
+	return ok
 }
