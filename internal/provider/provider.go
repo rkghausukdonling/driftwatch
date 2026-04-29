@@ -1,6 +1,9 @@
 package provider
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // Provider defines the interface for infrastructure providers
 // that can fetch the current state of deployed resources.
@@ -36,11 +39,12 @@ func New(name string, cfg map[string]string) (Provider, error) {
 	return factory(cfg)
 }
 
-// Available returns the names of all registered providers.
+// Available returns the names of all registered providers in sorted order.
 func Available() []string {
 	names := make([]string, 0, len(registry))
 	for n := range registry {
 		names = append(names, n)
 	}
+	sort.Strings(names)
 	return names
 }
